@@ -7,3 +7,6 @@ This is a case study from Google Data Analytics Certification program for the we
 * A **report** with summary of the analysis, supportive visualizations and key findings, and recommendations.
 * Some graphs.
 * **SQL code file (BigQuery)** for the analysis.
+
+![calories_vs_totalsteps](https://github.com/CindyGuanYG/capstone_project_wellness_tech/blob/main/calories_totalsteps.jpg)
+![totaltimeinbed_vs_timeasleep](https://github.com/CindyGuanYG/capstone_project_wellness_tech/blob/main/Totaltimeinbed_totalasleep.jpg)
