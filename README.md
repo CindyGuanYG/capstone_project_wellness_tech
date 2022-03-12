@@ -4,6 +4,6 @@ This is a case study from Google Data Analytics Certification program for the we
 ### This capstone project contains the following files:
 * The **R markdown file** for Analysis of FitBit Fitness Tracker Data.
 * A **PDF** that shows the R codes and the outputs.
-* A **report** with summary of the analysis, supportive isualizations and key findings, and recommendations.
+* A **report** with summary of the analysis, supportive visualizations and key findings, and recommendations.
 * Some graphs.
 * **SQL code file (BigQuery)** for the analysis.
