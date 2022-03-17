@@ -1,0 +1,265 @@
+---
+title: "Analysis of FitBit Fitness Track Data for Bellabeat"
+date: "2022/3/3"
+author: "Yaxin Guan"
+output: pdf_document
+---
+
+## Data Source
+[**FitBit Fitness Track Data**](https://www.kaggle.com/arashnic/fitbit)
+
+## Load necessary packages
+```{r load packages}
+library(tidyverse)
+library(lubridate)
+library(data.table)
+```
+
+
+## Loading CSV files
+The data are from April 12th, 2016 to May 12th, 2016.
+```{r import data, include=FALSE}
+Filepath <- "D:/Career/Google Data Analytics Program/Case Study/Google Data Analytics Certification Capstone/Case-Study-2-Bellabeat-Wellness/archive/Fitabase Data/"
+```
+
+```{r}
+# Filepath <- "User/Capstone-Project/"
+daily_activity <- read_csv(paste0(Filepath, "dailyActivity_merged.csv"))
+```
+
+```{r}
+sleep_day <- read_csv(paste0(Filepath, "sleepDay_merged.csv"))
+```
+
+```{r}
+weight_log <- read_csv(paste0(Filepath, "weightLogInfo_merged.csv"))
+```
+
+```{r}
+hourly_intensities <- read_csv(paste0(Filepath, "hourlyIntensities_merged.csv"))
+hourly_calories <- read_csv(paste0(Filepath, "hourlyCalories_merged.csv"))
+hourly_steps <- read_csv(paste0(Filepath, "hourlySteps_merged.csv"))
+```
+
+## Explore data
+```{r explore data of daily activity}
+head(daily_activity)
+colnames(daily_activity)
+```
+
+```{r explore data of sleep day}
+head(sleep_day)
+colnames(sleep_day)
+```
+
+```{r explore the data of weight log}
+head(weight_log)
+colnames(weight_log)
+```
+
+```{r explore data of hourly intensities}
+head(hourly_intensities)
+colnames(hourly_intensities)
+```
+
+```{r explore data of hourly calories}
+head(hourly_calories)
+colnames(hourly_calories)
+```
+
+```{r explore data of hourly steps}
+head(hourly_steps)
+colnames(hourly_steps)
+```
+Energy expenditure formula is from:
+[**HSS**](https://www.hss.edu/conditions_burning-calories-with-exercise-calculating-estimated-energy-expenditure.asp) 
+Calories/minutes = 0.0175 x MET (of activity) x body weight (in kg)
+Calories will burn even when sitting quietly, so calories burn when the hourly step is 0.
+
+```{r distinct users}
+n_distinct(daily_activity$Id)
+n_distinct(sleep_day$Id)
+n_distinct(weight_log$Id)
+```
+It looks like there may be more participants in the daily activity dataset than the sleep dataset.
+
+Number of observations 
+```{r observations}
+nrow(daily_activity)
+nrow(sleep_day)
+nrow(weight_log)
+nrow(hourly_calories)
+nrow(hourly_intensities)
+nrow(hourly_steps)
+```
+
+## Summaries
+For the daily activity data frame:
+```{r}
+daily_activity %>%  
+  select(TotalSteps,
+         TotalDistance,
+         SedentaryMinutes) %>%
+  summary()
+```
+
+
+For the sleep data frame:
+```{r}
+sleep_day %>%  
+  select(TotalSleepRecords,
+  TotalMinutesAsleep,
+  TotalTimeInBed) %>%
+  summary()
+```
+
+For the weight log data frame:
+```{r}
+weight_log %>%
+  select(WeightKg,WeightPounds, BMI) %>%
+  summary()
+```
+
+For the hourly intensities data frame:
+```{r}
+hourly_intensities %>%
+  select(TotalIntensity, 'AverageIntensity(in sec)' = AverageIntensity) %>%
+  summary()
+```
+
+## Data Visualization
+#### Sedentary Minutes vs. Total Steps
+```{r fig.align = "center"}
+ggplot(data=daily_activity, aes(x=TotalSteps, y=SedentaryMinutes)) + geom_point() + geom_smooth(color = "darkorange") + labs(title = "Sedentary Minutes vs. Total Steps") + 
+  theme(plot.title = element_text(hjust = 0.5))
+# ggsave("sedentaryminutes_totalsteps.jpg")
+```
+
+```{r}
+cor.test(daily_activity$TotalSteps, daily_activity$SedentaryMinutes, 
+         alternative = "less")
+```
+Although the trend is not obvious in the graph, the correlation is negative.
+
+#### Total Time in Bed vs. Total Minutes Asleep
+```{r fig.align = "center"}
+ggplot(data=sleep_day, aes(x=TotalMinutesAsleep, y=TotalTimeInBed)) + geom_point() +
+  geom_smooth(aes(group = 1),method = "lm", formula = y ~ x,se = FALSE, color = "darkorange") + labs(title = "Total Time in Bed vs. Total Minutes Asleep") + 
+  theme(plot.title = element_text(hjust = 0.5))
+# ggsave("Totaltimeinbed_totalasleep.jpg")
+```
+
+```{r}
+cor.test(sleep_day$TotalMinutesAsleep, sleep_day$TotalTimeInBed, 
+         alternative = "greater")
+```
+Positive and strong correlation (close to 1) as expected.
+
+#### Time Asleep & Total Sleep Records
+```{r}
+sleep_day$asleep_categories <- cut(sleep_day$TotalMinutesAsleep, seq(from = 0, to = 800, by = 50))
+sleep_day %>%
+  group_by(asleep_categories,TotalSleepRecords) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = asleep_categories, y = count, fill = TotalSleepRecords)) + 
+  geom_bar(position= "stack",stat="identity") + 
+  scale_fill_gradient(low = "darkorange", high = "black") +
+  labs(x = "Total Minutes Asleep in Categories", title = "Count Total Minutes Asleep in Categories")+
+  theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(vjust = 0.5, angle = 90)) 
+#ggsave("Count Total Minutes Asleep in Categories.jpg")
+```
+
+```{r merge data}
+#combined_data <- merge(sleep_day, daily_activity, by = "Id", allow.cartesian=TRUE)
+combined_data <- right_join(sleep_day, daily_activity, by = "Id")
+```
+
+```{r}
+n_distinct(combined_data$Id)
+```
+
+#### Total Steps vs. Total Minutes Asleep
+```{r fig.align = "center"}
+ggplot(data = combined_data, aes(x = TotalMinutesAsleep, y = TotalSteps)) + 
+  geom_point() + labs(title = "Total Steps vs. Total Minutes Asleep") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+cor.test(combined_data$TotalMinutesAsleep, combined_data$TotalSteps)
+```
+The correlation is negative, but correlation does not mean the causation. More data and investigation (increase of sample size, controlled study, etc.) are needed to show that total steps can keep people feel energetic and decrease the sleep times.
+
+#### Calories vs. Total Steps
+```{r fig.align = "center"}
+ggplot(data = daily_activity, aes(x = TotalSteps, y = Calories)) + geom_point() + 
+  geom_smooth(method = "loess",color = "darkorange") + labs(title = "Calories vs. Total Steps") + theme(plot.title = element_text(hjust = 0.5))
+# ggsave("calories_totalsteps.jpg")
+```
+
+```{r}
+cor.test(daily_activity$TotalSteps, daily_activity$Calories, 
+         alternative = "greater")
+```
+The correlation is positive, which matches the trend in graph. The more time a person spends on walking, the more calories one will burn. 
+
+#### Time of Intensities
+```{r add columns of date and time}
+hourly_intensities$Date <- format(as.Date(hourly_intensities$ActivityHour, 
+                                   format = "%m/%d/%Y"), format = "%m/%d/%Y") # Date
+
+hourly_intensities$ActivityHour <- mdy_hms(hourly_intensities$ActivityHour,
+                                           tz = Sys.timezone())
+
+hourly_intensities$Time <- format(hourly_intensities$ActivityHour,
+                                  format = "%H:%M:%S")
+
+hourly_intensities$day_of_week <- format(as.Date(hourly_intensities$ActivityHour), "%A")
+```
+
+```{r sort day of week in order}
+hourly_intensities$day_of_week <- ordered(hourly_intensities$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday",                                                                                    "Thursday", "Friday", "Saturday"))
+```
+
+```{r}
+extract_data <- hourly_intensities[, c(3,6)]
+plot_data <- extract_data %>%
+  group_by(Time) %>%
+  summarise(avg_TotalIntensity = mean(TotalIntensity))
+
+extract_data2 <- hourly_intensities[, c(3,7)]
+plot_data2 <- extract_data2 %>%
+  group_by(day_of_week) %>%
+  summarise(avg_TotalIntensity = mean(TotalIntensity))
+
+```
+
+#### Average of Total Intensity vs. Time
+```{r fig.align = "center"}
+ggplot(data = plot_data, aes(x = Time, y = avg_TotalIntensity)) + 
+  geom_bar(stat = "identity") + labs(title = "Average Total Intensity Per Hour") +
+  annotate("rect", xmin = 17.5, ymin = 0, xmax = 20.5, ymax = 22, 
+           fill = "darkorange", alpha = 0.5)+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        plot.title = element_text(hjust = 0.5))
+#ggsave("time_total_intensity.jpg")
+```
+
+#### Average of Total Intensity vs. Days of Week
+```{r fig.align = "center"}
+ggplot(data = plot_data2, aes(x = day_of_week, y = avg_TotalIntensity)) + 
+  geom_bar(stat = "identity") + labs(title = "Average Total Intensity vs. Day of Week") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5), 
+        plot.title = element_text(hjust = 0.5))
+```
+
+## Conclusion
+The total steps, calories burned, total minutes asleep, total time in bed, hourly intensity, and sedentary minutes are six key elements that people recorded with their smart devices and used in this analysis. The correlation between total steps and calories burned is positive (0.5915681). The correlation between total minutes asleep and total time in bed burned is strong and positive (0.9304575). However, the graph of count total minutes asleep shows that there are many sleep records of the participants are under 7 hours (420 minutes) each day. This needs to be improved because adults need 7 or more hours of sleep per night to maintain wellness based on [CDC](https://www.cdc.gov/sleep/data_statistics.html). 
+
+Also, the data shows that the mean of daily total step is 7,638 and the third quartile is 10,727. Based on [Lifestyle Coach Facilitation Guide: Post-Core of CDC](https://www.cdc.gov/diabetes/prevention/pdf/postcurriculum_session8.pdf), the goal of daily total steps to maintain wellness is 10,000. Only the total steps from 75th percentile (Q3) and above in this data reaches the goal of 10,000.
+
+Moreover, the hourly intensity shows that the participants (8 unique Id in this case) have more intensities at 5:00 PM to 7:00 PM. It is reasonable because most people are off work at that time, yet increasing the sample size will help defining the trend better. The data from the dailyActivity_merged.csv file shows the mean sedentary minutes of the participant is 991.2 (16.52 hr).  
+
+Based on the trends above, the Leaf (classic wellness tracker) of Bellabeat is good products for keeping track of sleep and activity.  The Leaf tracker connects with the app has sleep goal to maintain a good sleep habit. The Leaf tracker is able to keep track of light sleep and deep sleep. It also has goal for steps and active hours for exercise to achieve wellness goal. Bellabeat Leaf tracker can keep track of activity like walking and calories burned. Leaf has the inactivity alert feature, which it will remind the user to move more or less often, by vibrating consecutively when the user has been inactive. The user needs to do a certain number of steps to not have the Leaf tracker reminds. It will be better if Bellabeat can extend on this feature, such as reminding the user to stand up instead of walk when ones sedentary time is long. Since there is job position requires the person to stay in the same location most of time and cannot satisfy the requirement of steps, it will help the user to burn more calories even in the work environment when the user stands up instead of sitting.
+
+These trends could help influence Bellabeat marketing strategy by allowing Bellbeat to advertise its products are capable to do the same as other fitness trackers and more for women. Bellabeat Leaf tracker connects to the Bellabeat app to track activity, sleep, and stress. Based on [Office on Women's Health (OASH)](https://www.womenshealth.gov/a-z-topics/insomnia), stress and hormonal changes can cause insomnia for women. The Leaf keeps track of stress with Bellabeat app will be helpful to evaluate stress level. In addition, Bellabeat app offers meditation and period tracking.
